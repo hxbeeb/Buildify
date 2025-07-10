@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Code2, Eye } from 'lucide-react';
 
 interface TabViewProps {

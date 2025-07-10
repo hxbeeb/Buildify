@@ -96,4 +96,4 @@ def chat():
 if __name__ == "__main__":
     if not API_KEY:
         raise ValueError("Please set GEMINI_API_KEY or GOOGLE_API_KEY environment variable")
-    app.run(host:"0.0.0.0",port=5000)
+    app.run(host="0.0.0.0",port=5000)

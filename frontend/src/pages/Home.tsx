@@ -17,7 +17,7 @@ export function Home() {
   const [cloudinaryPresetInput, setCloudinaryPresetInput] = useState('');
   const [showCloudinaryModal, setShowCloudinaryModal] = useState(false);
   const navigate = useNavigate();
-  const { user, loading, login, register, logout } = useAuth();
+  const { user, login, register, logout } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authEmail, setAuthEmail] = useState('');
