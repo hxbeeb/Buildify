@@ -49,7 +49,7 @@ export function Builder() {
 
   const [files, setFiles] = useState<FileItem[]>([]);
 
-  const [projectCode, setProjectCode] = useState("");  // Add state for projectCode
+  // const [projectCode, setProjectCode] = useState("");  // Add state for projectCode
   const [showFileExplorer, setShowFileExplorer] = useState(false);
 
   // Switch to preview tab after code is loaded
@@ -168,9 +168,9 @@ export function Builder() {
     });
     setTemplateSet(true);
     
-    const {prompts, uiPrompts, projectCode} = response.data;  // Extract projectCode
+    const {prompts, uiPrompts} = response.data;  // Extract projectCode
 
-    setProjectCode(projectCode);  // Set the projectCode to state
+    // setProjectCode(projectCode);  // Set the projectCode to state
 
     setSteps(parseXml(uiPrompts[0]).map((x: Step) => ({
       ...x,

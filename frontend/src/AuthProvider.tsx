@@ -31,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, displayName: string) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName });
         // Save displayName to Firestore
