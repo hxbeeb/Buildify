@@ -215,12 +215,13 @@ import cors from "cors";
 const app = express();
 app.use(
   cors({
-    origin: ["http://localhost:5173","http://localhost:5174"],
+    origin: ["http://localhost:5173","http://localhost:5174","https://buildify-web-builder.netlify.app"],
   })
 );
 app.use(express.json());
 
-const FLASK_SERVER_URL = "http://localhost:5000/generate";
+// const FLASK_SERVER_URL = "http://localhost:5000/generate";
+const FLASK_SERVER_URL = "https://buildify-tzea.onrender.com/generate";
 
 // Helper function to make Flask API calls
 async function callFlaskServer(prompt: string) {
@@ -315,5 +316,5 @@ app.post("/chat", async (req, res) => {
 
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running`);
 });

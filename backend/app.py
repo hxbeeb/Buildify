@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000","https://buildify-ts.onrender.com"]}})
 
 # Configure Google Gemini API
 # Make sure to set your API key in environment variables
