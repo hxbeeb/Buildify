@@ -4,6 +4,7 @@ import { Wand2 } from 'lucide-react';
 import { FaMagic, FaCogs } from 'react-icons/fa';
 import axios from 'axios';
 import { useAuth } from '../AuthProvider';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -17,13 +18,7 @@ export function Home() {
   const [cloudinaryPresetInput, setCloudinaryPresetInput] = useState('');
   const [showCloudinaryModal, setShowCloudinaryModal] = useState(false);
   const navigate = useNavigate();
-  const { user, login, register, logout } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authDisplayName, setAuthDisplayName] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -93,11 +88,54 @@ export function Home() {
 //   };
 
 
+const getIsPro = () => {
+  try {
+    const pub = (user as any)?.publicMetadata;
+    const priv = (user as any)?.privateMetadata;
+    const plan = (pub?.plan || priv?.plan || '').toString().toLowerCase();
+    return plan === 'pro' || plan === 'team' || plan === 'enterprise';
+  } catch {
+    return false;
+  }
+};
+
+const getUsageKey = () => `builder:usage:${(user as any)?.id || 'anon'}`;
+
+const getLast24hCount = () => {
+  const key = getUsageKey();
+  const raw = localStorage.getItem(key);
+  const arr: number[] = raw ? JSON.parse(raw) : [];
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const recent = arr.filter(ts => ts > cutoff);
+  // persist cleaned list
+  localStorage.setItem(key, JSON.stringify(recent));
+  return recent.length;
+};
+
+const recordUsageNow = () => {
+  const key = getUsageKey();
+  const raw = localStorage.getItem(key);
+  const arr: number[] = raw ? JSON.parse(raw) : [];
+  arr.push(Date.now());
+  localStorage.setItem(key, JSON.stringify(arr));
+};
+
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!prompt.trim()) return;
   if (!user) {
     toast.error('Please log in to get started!', { position: 'top-center' });
+    return;
+  }
+
+  // Enforce free plan rate limit: max 1 query per 24h
+  const isPro = getIsPro();
+  const used = getLast24hCount();
+  if (!isPro && used >= 1) {
+    toast.error('Free plan limit reached (1 request / 24h). Upgrade to Pro to continue.', { position: 'top-center' });
+    // Optionally scroll to pricing
+    const el = document.getElementById('pricing');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
     return;
   }
 
@@ -115,6 +153,9 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   console.log("Navigating to /builder with final prompt:", finalPrompt);
 
+  // Record usage on successful submission
+  recordUsageNow();
+
   navigate('/builder', {
     state: {
       prompt: finalPrompt
@@ -122,21 +163,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   });
 };
 
-  // Auth modal handlers
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    if (authMode === 'login') {
-      await login(authEmail, authPassword);
-    } else {
-      await register(authEmail, authPassword, authDisplayName);
-    }
-    setAuthLoading(false);
-    setShowAuthModal(false);
-    setAuthEmail('');
-    setAuthPassword('');
-    setAuthDisplayName('');
-  };
+  // Clerk handles auth; no local auth modal required
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-blue-900 flex flex-col">
@@ -150,80 +177,19 @@ const handleSubmit = async (e: React.FormEvent) => {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          {user ? (
-            <>
-              <span className="text-pink-200 text-sm">{user.displayName || user.email}</span>
-              <button onClick={logout} className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold shadow hover:from-pink-400 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-pink-300">Logout</button>
-            </>
-          ) : (
-            <button
-              onClick={() => { setShowAuthModal(true); setAuthMode('login'); }}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 text-white font-bold shadow hover:from-yellow-300 hover:via-pink-400 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-pink-300"
-            >
-              Login / Register
-            </button>
-          )}
+          <SignedOut>
+            <SignInButton>
+              <button className="px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 text-white font-bold shadow hover:from-yellow-300 hover:via-pink-400 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-pink-300">
+                Login / Register
+              </button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
         </div>
       </nav>
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 rounded-2xl shadow-2xl border border-blue-700 p-6 w-full max-w-md">
-            <h3 className="text-xl font-extrabold tracking-wide text-white mb-4">{authMode === 'login' ? 'Login' : 'Register'}</h3>
-            <form onSubmit={handleAuthSubmit} className="flex flex-col gap-4">
-              {authMode === 'register' && (
-                <input
-                  type="text"
-                  placeholder="Display Name"
-                  value={authDisplayName}
-                  onChange={e => setAuthDisplayName(e.target.value)}
-                  className="p-2 rounded-lg border-2 border-purple-500 bg-gray-800 text-white focus:border-pink-400 focus:ring-2 focus:ring-pink-300 placeholder:text-purple-300"
-                  required
-                />
-              )}
-              <input
-                type="email"
-                placeholder="Email"
-                value={authEmail}
-                onChange={e => setAuthEmail(e.target.value)}
-                className="p-2 rounded-lg border-2 border-purple-500 bg-gray-800 text-white focus:border-pink-400 focus:ring-2 focus:ring-pink-300 placeholder:text-purple-300"
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={authPassword}
-                onChange={e => setAuthPassword(e.target.value)}
-                className="p-2 rounded-lg border-2 border-purple-500 bg-gray-800 text-white focus:border-pink-400 focus:ring-2 focus:ring-pink-300 placeholder:text-purple-300"
-                required
-              />
-              <div className="flex justify-between mt-2">
-                <button
-                  type="button"
-                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                  className="text-pink-300 hover:underline text-sm"
-                >
-                  {authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Login'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAuthModal(false)}
-                  className="text-gray-400 hover:underline text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={authLoading}
-                className="w-full mt-2 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 hover:from-yellow-300 hover:via-pink-400 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-xl shadow-lg transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-pink-300 disabled:opacity-50"
-              >
-                {authLoading ? (authMode === 'login' ? 'Logging in...' : 'Registering...') : (authMode === 'login' ? 'Login' : 'Register')}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Clerk handles auth modals; custom modal removed */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="max-w-2xl w-full">
           <div className="text-center mb-8">

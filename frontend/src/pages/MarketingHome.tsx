@@ -1,6 +1,6 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaMagic, FaCogs, FaCheck, FaArrowRight, FaBolt, FaRocket, FaShieldAlt } from 'react-icons/fa';
+import { PricingTable } from '@clerk/clerk-react';
 
 export default function MarketingHome() {
   return (
@@ -126,28 +126,29 @@ export default function MarketingHome() {
           <h2 className="text-3xl font-extrabold text-white text-center">Pricing</h2>
           <p className="text-blue-200 text-center mt-2">Simple, transparent plans. Scale as you grow.</p>
 
-          <div className="mt-10 grid gap-6 md:grid-cols-3 max-w-6xl mx-auto">
-            {[{
-              name: 'Starter', price: '$0', features: ['1 project / day', 'Live preview', 'Email support'], cta: 'Try Free', highlighted: false
-            }, {
-              name: 'Pro', price: '$19/mo', features: ['Unlimited projects', 'Priority compute', 'Chat iteration'], cta: 'Go Pro', highlighted: true
-            }, {
-              name: 'Team', price: '$49/mo', features: ['Up to 5 seats', 'Shared projects', 'Priority support'], cta: 'Start Team', highlighted: false
-            }].map((p) => (
-              <div key={p.name} className={`rounded-2xl p-1 ${p.highlighted ? 'bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600' : 'bg-white/10'}`}>
-                <div className={`rounded-2xl bg-white/5 border border-blue-700 p-6 flex flex-col h-full ${p.highlighted ? 'shadow-2xl' : ''}`}>
-                  {p.highlighted && <div className="self-start px-2 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/20">Most Popular</div>}
-                  <h3 className="text-white font-bold text-xl mt-2">{p.name}</h3>
-                  <div className="mt-2 text-3xl font-extrabold text-white">{p.price}</div>
-                  <ul className="mt-4 text-blue-200 text-sm space-y-2">
-                    {p.features.map((f) => (<li key={f} className="flex items-center gap-2"><FaCheck className="text-green-300" /> {f}</li>))}
-                  </ul>
-                  <Link to="/start" className="mt-6 px-5 py-2 rounded-xl bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 text-white font-bold text-center hover:from-yellow-300 hover:via-pink-400 hover:to-purple-500">
-                    {p.cta}
-                  </Link>
-                </div>
-              </div>
-            ))}
+          <div className="mt-10 max-w-6xl mx-auto">
+            <div className="rounded-2xl p-1 bg-white/10">
+              <PricingTable
+                appearance={{
+                  variables: {
+                    colorPrimary: '#ec4899', // pink-500
+                    colorBackground: 'transparent',
+                    colorText: '#e5e7eb', // gray-200
+                    colorInputBackground: 'rgba(255,255,255,0.04)'
+                  },
+                  elements: {
+                    rootBox: 'text-blue-200',
+                    card: 'bg-white/5 border border-blue-700 rounded-2xl',
+                    header: 'text-white',
+                    planName: 'text-white font-bold text-xl',
+                    priceText: 'text-white text-3xl font-extrabold',
+                    featureItem: 'text-blue-200',
+                    primaryButton: 'mt-4 px-5 py-2 rounded-xl bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 text-white font-bold hover:from-yellow-300 hover:via-pink-400 hover:to-purple-500',
+                    secondaryButton: 'mt-4 px-5 py-2 rounded-xl border border-white/30 text-white hover:bg-white/10'
+                  }
+                }}
+              />
+            </div>
           </div>
         </section>
 
