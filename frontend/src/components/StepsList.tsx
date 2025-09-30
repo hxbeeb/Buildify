@@ -28,12 +28,9 @@ export function StepsList({ steps, currentStep, onStepClick }: StepsListProps) {
         {steps.map((step, index) => (
           <div
             key={`${step.id}-${index}`}
-            className={`p-3 rounded-xl cursor-pointer transition-all duration-200 shadow-md border-2 ${
-              currentStep === step.id
-                ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 border-pink-400 scale-105'
-                : 'bg-white/5 border-transparent hover:bg-gradient-to-r hover:from-purple-800 hover:to-blue-800 hover:border-blue-400'
-            }`}
-            onClick={() => onStepClick(step.id)}
+            className={
+              'p-3 rounded-xl transition-all duration-200 shadow-md border-2 select-none bg-white/5 border-transparent'
+            }
           >
             <div className="flex items-center gap-3">
               {step.status === 'completed' ? (

@@ -159,7 +159,7 @@ const react_1 = require("./defaults/react");
 const cors_1 = __importDefault(require("cors"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
-    origin: ["http://localhost:5173", "http://localhost:5174","https://buildify-web-builder.netlify.app","https://buildify-brown.vercel.app"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "https://buildify-web-builder.netlify.app", "https://buildify-brown.vercel.app"],
 }));
 app.use(express_1.default.json());
 // const FLASK_SERVER_URL = "http://localhost:5000/generate";

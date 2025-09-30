@@ -1,4 +1,4 @@
-import  { useEffect, useState } from 'react';
+import  { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { StepsList } from '../components/StepsList';
 import { FileExplorer } from '../components/FileExplorer';
@@ -19,6 +19,21 @@ export function Builder() {
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  // Read prompt from location.state or localStorage for reload safety
+  const prompt = location.state?.prompt || localStorage.getItem('builderPrompt');
+
+  // All hooks at the top
+  const [userPrompt, setPrompt] = useState("");
+  const [llmMessages, setLlmMessages] = useState<{role: "user" | "assistant", content: string;}[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [templateSet, setTemplateSet] = useState(false);
+  const webcontainer = useWebContainer();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
+  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [showFileExplorer, setShowFileExplorer] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -26,35 +41,36 @@ export function Builder() {
     }
   }, [user, authLoading, navigate]);
 
-  if (authLoading || !user) return null;
-
-  // Only destructure prompt after auth check
-  const prompt = location.state?.prompt;
-  if (!prompt) {
-    navigate('/');
-    return null;
-  }
-
-  const [userPrompt, setPrompt] = useState("");
-  const [llmMessages, setLlmMessages] = useState<{role: "user" | "assistant", content: string;}[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [templateSet, setTemplateSet] = useState(false);
-  const webcontainer = useWebContainer();
-
-  const [currentStep, setCurrentStep] = useState(1);
-  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
-  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
-  
-  const [steps, setSteps] = useState<Step[]>([]);
-
-  const [files, setFiles] = useState<FileItem[]>([]);
-
-  // const [projectCode, setProjectCode] = useState("");  // Add state for projectCode
-  const [showFileExplorer, setShowFileExplorer] = useState(false);
-
-  // Switch to preview tab after code is loaded
+  // If prompt is missing on initial load (e.g., after reload), navigate to home
   useEffect(() => {
-    if (templateSet && !loading) {
+    if (!prompt) {
+      navigate('/', { replace: true });
+    }
+  }, [prompt, navigate]);
+
+  useEffect(() => {
+    if (prompt) {
+      localStorage.setItem('builderPrompt', prompt);
+    }
+  }, [prompt]);
+
+  // Prevent accidental reload or navigation away
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  // Switch to preview tab only once after initial build completes
+  const hasAutoSwitchedRef = useRef(false);
+  useEffect(() => {
+    if (templateSet && !loading && !hasAutoSwitchedRef.current) {
+      hasAutoSwitchedRef.current = true;
       setActiveTab('preview');
     }
   }, [templateSet, loading]);
@@ -65,18 +81,15 @@ export function Builder() {
     steps.filter(({status}) => status === "pending").map(step => {
       updateHappened = true;
       if (step?.type === StepType.CreateFile) {
-        let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
-        let currentFileStructure = [...originalFiles]; // {}
+        let parsedPath = step.path?.split("/") ?? [];
+        let currentFileStructure = [...originalFiles];
         let finalAnswerRef = currentFileStructure;
-  
         let currentFolder = ""
         while(parsedPath.length) {
           currentFolder =  `${currentFolder}/${parsedPath[0]}`;
           let currentFolderName = parsedPath[0];
           parsedPath = parsedPath.slice(1);
-  
           if (!parsedPath.length) {
-            // final file
             let file = currentFileStructure.find(x => x.path === currentFolder)
             if (!file) {
               currentFileStructure.push({
@@ -89,10 +102,8 @@ export function Builder() {
               file.content = step.code;
             }
           } else {
-            /// in a folder
             let folder = currentFileStructure.find(x => x.path === currentFolder)
             if (!folder) {
-              // create the folder
               currentFileStructure.push({
                 name: currentFolderName,
                 type: 'folder',
@@ -100,33 +111,26 @@ export function Builder() {
                 children: []
               })
             }
-  
             currentFileStructure = currentFileStructure.find(x => x.path === currentFolder)!.children!;
           }
         }
         originalFiles = finalAnswerRef;
       }
-
     })
-
     if (updateHappened) {
       setFiles(originalFiles)
-      setSteps(steps => steps.map((s: Step) => {
-        return {
-          ...s,
-          status: "completed"
-        }
-      }))
+      setSteps(steps => steps.map((s: Step) => ({
+        ...s,
+        status: "completed"
+      })))
     }
   }, [steps, files]);
 
   useEffect(() => {
     const createMountStructure = (files: FileItem[]): Record<string, any> => {
       const mountStructure: Record<string, any> = {};
-  
       const processFile = (file: FileItem, isRootFolder: boolean) => {  
         if (file.type === 'folder') {
-          // For folders, create a directory entry
           mountStructure[file.name] = {
             directory: file.children ? 
               Object.fromEntries(
@@ -141,7 +145,6 @@ export function Builder() {
               }
             };
           } else {
-            // For files, create a file entry with contents
             return {
               file: {
                 contents: file.content || ''
@@ -151,18 +154,17 @@ export function Builder() {
         }
         return mountStructure[file.name];
       };
-  
-      // Process each top-level file/folder
       files.forEach(file => processFile(file, true));
-  
       return mountStructure;
     };
-  
     const mountStructure = createMountStructure(files);
     webcontainer?.mount(mountStructure);
   }, [files, webcontainer]);
 
+  const initRanRef = useRef(false);
+
   async function init() {
+    if (!prompt) return;
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt.trim()
     });
@@ -199,9 +201,13 @@ export function Builder() {
     setLlmMessages(x => [...x, {role: "assistant", content: stepsResponse.data.response}])
   }
 
+  // Start build automatically when prompt and auth are ready (works on reload)
   useEffect(() => {
-    init();
-  }, [])
+    if (!initRanRef.current && !authLoading && user && prompt) {
+      initRanRef.current = true;
+      init();
+    }
+  }, [authLoading, user, prompt]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-blue-900 flex flex-col overflow-hidden">
@@ -233,8 +239,8 @@ export function Builder() {
             </button>
           )}
         </div>
-        <div className={`grid gap-4 md:gap-6 p-2 md:p-6 ${showFileExplorer ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'} h-full min-h-0`}>
-          <div className="col-span-1 flex flex-col h-full min-h-0 overflow-hidden">
+        <div className={`grid gap-4 md:gap-6 p-2 md:p-6 grid-cols-1 md:grid-cols-12 h-full min-h-0`}>
+          <div className="col-span-1 md:col-span-3 flex flex-col h-full min-h-0 overflow-hidden">
             <div className="flex-1 min-h-0 overflow-auto bg-white/5 rounded-2xl shadow-lg p-2 backdrop-blur-md border border-purple-700">
               <StepsList
                 steps={steps}
@@ -289,7 +295,7 @@ setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
           </div>
            {/* File Explorer column, only when shown */}
            {showFileExplorer && (
-            <div className="col-span-1 flex flex-col h-full min-h-0">
+            <div className="col-span-1 md:col-span-3 flex flex-col h-full min-h-0">
               <div className="bg-white/5 rounded-2xl shadow-lg p-2 backdrop-blur-md border border-blue-700 flex-1 min-h-0 overflow-auto">
                  <FileExplorer 
                    files={files} 
@@ -299,14 +305,15 @@ setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
                </div>
              </div>
            )}
-          <div className={`bg-white/10 rounded-3xl shadow-2xl p-4 flex flex-col h-full min-h-0 border border-indigo-700 backdrop-blur-md mt-4 md:mt-0 ${showFileExplorer ? 'col-span-1' : 'md:col-span-1 col-span-1'}`}>
+          <div className={`bg-white/10 rounded-3xl shadow-2xl p-4 flex flex-col h-full min-h-0 border border-indigo-700 backdrop-blur-md mt-4 md:mt-0 ${showFileExplorer ? 'col-span-1 md:col-span-6' : 'col-span-1 md:col-span-9'}`}>
             <TabView activeTab={activeTab} onTabChange={setActiveTab} />
             <div className="flex-1 min-h-0 h-0 overflow-auto">
-              {activeTab === 'code' ? (
+              <div style={{ display: activeTab === 'code' ? 'block' : 'none', height: '100%' }}>
                 <CodeEditor file={selectedFile} />
-              ) : (
+              </div>
+              <div style={{ display: activeTab === 'preview' ? 'block' : 'none', height: '100%' }}>
                 <PreviewFrame webContainer={webcontainer!} files={files} />
-              )}
+              </div>
             </div>
           </div>
         </div>
