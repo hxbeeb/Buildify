@@ -4,11 +4,15 @@ import { Wand2 } from 'lucide-react';
 import { FaMagic, FaCogs } from 'react-icons/fa';
 import axios from 'axios';
 import { useAuth } from '../AuthProvider';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, UserAvatar, UserButton } from '@clerk/clerk-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useAuth as clerk } from '@clerk/clerk-react';
 
 export function Home() {
+  const {has}=clerk();
+  const isPro=has?.({plan:"pro"});
+  console.log(isPro);
   const [prompt, setPrompt] = useState('');
   const [images, setImages] = useState<{ file: File; description: string }[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -88,37 +92,9 @@ export function Home() {
 //   };
 
 
-const getIsPro = () => {
-  try {
-    const pub = (user as any)?.publicMetadata;
-    const priv = (user as any)?.privateMetadata;
-    const plan = (pub?.plan || priv?.plan || '').toString().toLowerCase();
-    return plan === 'pro' || plan === 'team' || plan === 'enterprise';
-  } catch {
-    return false;
-  }
-};
+// Plan detection removed
 
-const getUsageKey = () => `builder:usage:${(user as any)?.id || 'anon'}`;
-
-const getLast24hCount = () => {
-  const key = getUsageKey();
-  const raw = localStorage.getItem(key);
-  const arr: number[] = raw ? JSON.parse(raw) : [];
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  const recent = arr.filter(ts => ts > cutoff);
-  // persist cleaned list
-  localStorage.setItem(key, JSON.stringify(recent));
-  return recent.length;
-};
-
-const recordUsageNow = () => {
-  const key = getUsageKey();
-  const raw = localStorage.getItem(key);
-  const arr: number[] = raw ? JSON.parse(raw) : [];
-  arr.push(Date.now());
-  localStorage.setItem(key, JSON.stringify(arr));
-};
+// Free/Pro gating removed – no local usage tracking
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -128,16 +104,22 @@ const handleSubmit = async (e: React.FormEvent) => {
     return;
   }
 
-  // Enforce free plan rate limit: max 1 query per 24h
-  const isPro = getIsPro();
-  const used = getLast24hCount();
-  if (!isPro && used >= 1) {
-    toast.error('Free plan limit reached (1 request / 24h). Upgrade to Pro to continue.', { position: 'top-center' });
-    // Optionally scroll to pricing
-    const el = document.getElementById('pricing');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-    return;
+  // Plan gating 
+  const lastPromptKey = `lastPrompt_${user.id}`;
+  const oldDate = localStorage.getItem(lastPromptKey);
+  
+  if (oldDate) {
+    const now = Date.now();
+    const lastPromptTime = parseInt(oldDate);
+    const hoursDiff = (now - lastPromptTime) / (1000 * 60 * 60);
+    
+    if (hoursDiff < 24) {
+      toast.error("You have hit free plan limit, Upgrade to pro to continue", { position: "top-center" });
+      return;
+    }
   }
+
+  localStorage.setItem(lastPromptKey, Date.now().toString());
 
   setUploading(true);
   const uploadedImages = await handleUploadAllImages();
@@ -153,8 +135,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   console.log("Navigating to /builder with final prompt:", finalPrompt);
 
-  // Record usage on successful submission
-  recordUsageNow();
+  // Plan gating disabled
 
   navigate('/builder', {
     state: {

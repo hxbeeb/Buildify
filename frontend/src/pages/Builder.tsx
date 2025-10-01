@@ -15,7 +15,9 @@ import { FaMagic, FaPaperPlane, FaCogs, FaCode, FaEyeSlash } from 'react-icons/f
 import { useAuth } from '../AuthProvider';
 
 
+
 export function Builder() {
+
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -257,38 +259,37 @@ export function Builder() {
                 }} className='p-3 w-full rounded-xl bg-gradient-to-br from-gray-800 via-gray-900 to-purple-900 text-white border-2 border-purple-500 focus:border-pink-400 focus:ring-2 focus:ring-pink-300 shadow-lg transition-all duration-200 resize-none placeholder:text-purple-300' placeholder="Type your next instruction..." rows={3}></textarea>
          
                   <button onClick={async () => {
-const newMessage = {
-  role: "user" as "user",
-  content: userPrompt
-};
+                    const newMessage = {
+                      role: "user" as "user",
+                      content: userPrompt
+                    };
 
-const messagesToSend = [...llmMessages, newMessage];
+                    const messagesToSend = [...llmMessages, newMessage];
 
-console.log("Sending messages to backend:", messagesToSend);
+                    console.log("Sending messages to backend:", messagesToSend);
 
-setLoading(true);
+                    setLoading(true);
 
-const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
-  messages: messagesToSend
-});
+                    const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
+                      messages: messagesToSend
+                    });
 
-setLoading(false);
+                    setLoading(false);
 
-setLlmMessages(x => [...x, newMessage]);
-setLlmMessages(x => [...x, {
-  role: "assistant",
-  content: stepsResponse.data.response
-}]);
+                     setLlmMessages(x => [...x, newMessage]);
+                     setLlmMessages(x => [...x, {
+                       role: "assistant",
+                       content: stepsResponse.data.response
+                        }]);
 
-setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
-  ...x,
-  status: "pending" as "pending"
-}))]);
+                        setSteps(s => [...s, ...parseXml(stepsResponse.data.response).map(x => ({
+                          ...x,
+                          status: "pending" as "pending"
+                        }))]);
 
-}} className='flex items-center gap-2 justify-center bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 hover:from-yellow-300 hover:via-pink-400 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-xl shadow-xl shadow-pink-400/40 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-4 focus:ring-pink-300 focus:ring-opacity-60 animate-pulse hover:animate-none'>
-<FaPaperPlane className="text-lg" /> Send
-</button>
-
+                      }} className='flex items-center gap-2 justify-center bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 hover:from-yellow-300 hover:via-pink-400 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-xl shadow-xl shadow-pink-400/40 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-4 focus:ring-pink-300 focus:ring-opacity-60 animate-pulse hover:animate-none'>
+                    <FaPaperPlane className="text-lg" /> Send
+                  </button>
                 </div>}
               </div>
             </div>
